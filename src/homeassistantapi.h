@@ -9,12 +9,12 @@ int checkOnOffState(String entity)
     int code = http.GET();
     if (code != HTTP_CODE_OK)
     {
-        Serial.println("Error connecting to HA API");
-        Serial.println(code);
+        Serial.println("Error '" + String(code) + "' connecting to HA API: " + api_url);
         return entity_state::ERROR;
     }
     DynamicJsonDocument doc(4096);
     DeserializationError error = deserializeJson(doc, http.getStream());
+    http.end();
     if (error)
     {
         Serial.print(F("deserializeJson() failed: "));
@@ -22,8 +22,7 @@ int checkOnOffState(String entity)
         return entity_state::ERROR;
     }
     String state = doc["state"];
-    Serial.println(state);
-    http.end();
+    Serial.println("  - " + entity + " state: " + state);
     if (state == "on"){
         return entity_state::ON;
     }
@@ -46,8 +45,8 @@ HAConfigurations getHaStatus()
     int code = http.GET();
     if (code != HTTP_CODE_OK)
     {
-        Serial.println("Error connecting to HA API");
-        Serial.println(code);
+        http.end();
+        Serial.println("Error '" + String(code) + "' connecting to HA API: " + api_url);
         return haConfigs;
     }
     DynamicJsonDocument doc(4096);
@@ -57,6 +56,7 @@ HAConfigurations getHaStatus()
     filter["version"] = true;
     filter["state"] = true;
     DeserializationError error = deserializeJson(doc, http.getStream(), DeserializationOption::Filter(filter));
+    http.end();
     if (error)
     {
         Serial.print(F("deserializeJson() failed: "));
@@ -69,13 +69,11 @@ HAConfigurations getHaStatus()
     haConfigs.haStatus = state;
     haConfigs.timeZone = timeZone;
     haConfigs.version  = version; 
-    //String state = doc["state"];
-    //Serial.println(state);
-    http.end();
+    Serial.println("Home Assistant config: " + state + " - " + timeZone + " - " + version);
     return haConfigs;
 }
 
-float getSensorFloatValue(String entity)
+String getSensorValue(String entity)
 {
     String api_url = ha_server + "/api/states/" + entity;
     http.begin(api_url);
@@ -83,20 +81,54 @@ float getSensorFloatValue(String entity)
     int code = http.GET();
     if (code != HTTP_CODE_OK)
     {
-        Serial.println("Error connecting to HA API");
-        Serial.println(code);
-        return 0;
+        Serial.println("Error '" + String(code) + "' connecting to HA API for: " + api_url);
+        return "";
     }
     DynamicJsonDocument doc(4096);
     DeserializationError error = deserializeJson(doc, http.getStream());
+    http.end();
     if (error)
     {
         Serial.print(F("deserializeJson() failed: "));
         Serial.println(error.f_str());
-        return 0;
+        return "";
     }
     String state = doc["state"];
-    Serial.println(state);
+    Serial.println("  - " + entity + " state: " + state);
+    return state;
+}
+
+String getSensorAttributeValue(String entity, String attribute)
+{
+    String api_url = ha_server + "/api/states/" + entity;
+    http.begin(api_url);
+    http.addHeader("Authorization", "Bearer " + ha_token);
+    int code = http.GET();
+    if (code != HTTP_CODE_OK)
+    {
+        Serial.println("Error '" + String(code) + "' connecting to HA API for: " + api_url);
+        return "";
+    }
+    DynamicJsonDocument doc(4096);
+    DeserializationError error = deserializeJson(doc, http.getStream());
     http.end();
-    return state.toFloat();
+
+    if (error)
+    {
+        Serial.print(F("deserializeJson() failed: "));
+        Serial.println(error.f_str());
+        return "";
+    }
+    String attr = doc["attributes"][attribute];
+    Serial.println(entity + "/" + attribute + ": " + attr);
+    if (attr != NULL && attr != "" && attr != "null")
+    {
+        return attr;
+    }
+}
+
+float getSensorFloatValue(String entity)
+{
+    String state = getSensorValue(entity);
+    return state.toFloat();    
 }

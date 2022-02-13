@@ -1,6 +1,6 @@
 // Start of reserved configurations. Do not change if you dont know what you are doing
 enum entity_state {ON, OFF, ERROR, UNAVAILABLE};
-enum entity_type {SWITCH, LIGHT, METER, SENSOR, EXFAN, FAN, AIRPURIFIER, WATERHEATER, PLUG, AIRCONDITIONER};
+enum entity_type {SWITCH, LIGHT, EXFAN, FAN, AIRPURIFIER, WATERHEATER, PLUG, AIRCONDITIONER, PLANT};
 enum entity_state_type {ONOFF, VALUE};
 enum sensor_type {DOOR, MOTION, ENERGYMETER, TEMP, ENERGYMETERPWR};
 struct HAEntities{
