@@ -5,7 +5,7 @@ This project works with LilyGO T5 4.7 inch e-paper EPD display as available from
 
 You can simply add and display your HA entities (switches, binary sensors, temperature...) to get a neat overview about what's up.
 
-![](assets\epaper_home_assistant_dashboard.jpg)
+![](assets/epaper_home_assistant_dashboard.jpg)
 
 LilyGo T5 4.7 Inch E-Paper Screen is very cheap all in one board that you can use to display various content. 
 This would make a cool dashboard when integrated with HA to monitor the status of the devices intergated to HA. 
