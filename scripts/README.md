@@ -43,7 +43,7 @@
   ``OpenSans-Regular.ttf``  
   ``...``  
 
-1. Copy ``imgconvert.py`` located in this scripts folder to ``c:\temp\fonts\``
+1. Copy ``fontconvert.py`` located in this scripts folder to ``c:\temp\fonts\``
 
 1. Start a Windows cmd prompt, and chage directory to the folder:  
    ```
@@ -53,12 +53,12 @@
 1. Create fonts you need.  
    ```
    To create a Regular 10-point font, enter this at the command prompt:  
-   > python fontconvert.py OpenSans10 10 OpenSans-Regular.ttf > opensans10.h
+   > python fontconvert.py OpenSans12 12 OpenSans-Regular.ttf > opensans12.h
 
    To create a Bold 10-point font, enter this at the command prompt:  
    > python fontconvert.py OpenSans10B 10 OpenSans-Bold.ttf > opensans10b.h
    ```  
 1. The font files are now created. Move the ``opensansNNx.h`` file into your sketch folder and include the file in your code like this 
    ```
-   #include "myimage.h"
+   #include "opensans10b.h"
    ```
