@@ -93,6 +93,7 @@ long StartTime       = 0;
 long SleepTimer      = 0;
 int  CurrentHour = 0, CurrentMin = 0, CurrentSec = 0;
 
+int vref = 1100; // default battery vref
 int wifi_signal = 0;
 
 // required for NTP time
@@ -383,19 +384,41 @@ void DrawRSSI(int x, int y, int rssi) {
     drawString(x , y, "x", LEFT);
 }
 
+// void DrawBattery(int x, int y) {
+//   uint8_t percentage = 100;
+//   float voltage = analogRead(35) / 4096.0 * 7.46;
+//   if (voltage > 1 ) { // Only display if there is a valid reading
+//     Serial.println("Voltage = " + String(voltage));
+//     percentage = 2836.9625 * pow(voltage, 4) - 43987.4889 * pow(voltage, 3) + 255233.8134 * pow(voltage, 2) - 656689.7123 * voltage + 632041.7303;
+//     if (voltage >= 4.20) percentage = 100;
+//     if (voltage <= 3.20) percentage = 0;  // orig 3.5
+//     drawRect(x + 55, y - 15 , 40, 15, Black);
+//     fillRect(x + 95, y - 9, 4, 6, Black);
+//     fillRect(x + 57, y - 13, 36 * percentage / 100.0, 11, Black);
+//     drawString(x, y, String(percentage) + "%", LEFT);
+//     //drawString(x + 13, y + 5,  String(voltage, 2) + "v", CENTER);
+//   }
+// }
+
 void DrawBattery(int x, int y) {
   uint8_t percentage = 100;
-  float voltage = analogRead(35) / 4096.0 * 7.46;
+  esp_adc_cal_characteristics_t adc_chars;
+  esp_adc_cal_value_t val_type = esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_12, 1100, &adc_chars);
+  if (val_type == ESP_ADC_CAL_VAL_EFUSE_VREF) {
+    Serial.printf("eFuse Vref:%u mV", adc_chars.vref);
+    vref = adc_chars.vref;
+  }
+  float voltage = analogRead(36) / 4096.0 * 6.566 * (vref / 1000.0);
   if (voltage > 1 ) { // Only display if there is a valid reading
-    Serial.println("Voltage = " + String(voltage));
+    Serial.println("\nVoltage = " + String(voltage));
     percentage = 2836.9625 * pow(voltage, 4) - 43987.4889 * pow(voltage, 3) + 255233.8134 * pow(voltage, 2) - 656689.7123 * voltage + 632041.7303;
     if (voltage >= 4.20) percentage = 100;
     if (voltage <= 3.20) percentage = 0;  // orig 3.5
-    drawRect(x + 55, y - 15 , 40, 15, Black);
-    fillRect(x + 95, y - 9, 4, 6, Black);
-    fillRect(x + 57, y - 13, 36 * percentage / 100.0, 11, Black);
-    drawString(x, y, String(percentage) + "%", LEFT);
-    //drawString(x + 13, y + 5,  String(voltage, 2) + "v", CENTER);
+     drawRect(x + 55, y - 15 , 40, 15, Black);
+     fillRect(x + 95, y - 9, 4, 6, Black);
+     fillRect(x + 57, y - 13, 36 * percentage / 100.0, 11, Black);
+     drawString(x, y, String(percentage) + "%", LEFT);
+     drawString(x + 130, y,  String(voltage, 2) + "v", CENTER);
   }
 }
 
@@ -422,7 +445,7 @@ void DisplayGeneralInfoSection()
     Serial.println("Getting haStatus...");
     HAConfigurations haConfigs = getHaStatus();
     Serial.println("drawing status line...");    
-    drawString(EPD_WIDTH/2, 18, "Refreshed: " + dayStamp + " at " +  timeStamp + " (HA Ver:" + haConfigs.version + "/" + haConfigs.haStatus + ", TZ:" + haConfigs.timeZone + ")", CENTER);
+    drawString(EPD_WIDTH/2, 18, dayStamp + " - " +  timeStamp + " (HA Ver:" + haConfigs.version + "/" + haConfigs.haStatus + ", TZ:" + haConfigs.timeZone + ")", CENTER);
 }
 
 void DisplayStatusSection() {
