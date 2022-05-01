@@ -325,6 +325,7 @@ void DrawSwitchBar()
         if (haEntities[i].entityName != "") {
           if (haEntities[i].entityType == entity_type::SWITCH ||
               haEntities[i].entityType == entity_type::LIGHT ||
+              haEntities[i].entityType == entity_type::PLUG ||
               haEntities[i].entityType == entity_type::EXFAN ||
               haEntities[i].entityType == entity_type::FAN ||
               haEntities[i].entityType == entity_type::AIRPURIFIER ||
