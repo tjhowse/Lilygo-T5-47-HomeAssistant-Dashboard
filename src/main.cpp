@@ -36,32 +36,32 @@
 #include "epd_drawing.h"
 
 // Icons for Home Assistant
-#include "icons\waterheateron.h"
-#include "icons\waterheateroff.h"
-#include "icons\lightbulbon.h"
-#include "icons\lightbulboff.h"
-#include "icons\exhaustfanon.h"
-#include "icons\exhaustfanoff.h"
-#include "icons\fanoff.h"
-#include "icons\fanon.h"
-#include "icons\airpurifieron.h"
-#include "icons\airpurifieroff.h"
-#include "icons\plugon.h"
-#include "icons\plugoff.h"
-#include "icons\switchon.h"
-#include "icons\switchoff.h"
-#include "icons\airconditioneron.h"
-#include "icons\airconditioneroff.h"
-#include "icons\warning.h"
-#include "icons\plantWateringlow.h"
-#include "icons\plantWateringok.h"
+#include "icons/waterheateron.h"
+#include "icons/waterheateroff.h"
+#include "icons/lightbulbon.h"
+#include "icons/lightbulboff.h"
+#include "icons/exhaustfanon.h"
+#include "icons/exhaustfanoff.h"
+#include "icons/fanoff.h"
+#include "icons/fanon.h"
+#include "icons/airpurifieron.h"
+#include "icons/airpurifieroff.h"
+#include "icons/plugon.h"
+#include "icons/plugoff.h"
+#include "icons/switchon.h"
+#include "icons/switchoff.h"
+#include "icons/airconditioneron.h"
+#include "icons/airconditioneroff.h"
+#include "icons/warning.h"
+#include "icons/plantwateringlow.h"
+#include "icons/plantwateringok.h"
 
 // sensor icons
-#include "icons\dooropen.h"
-#include "icons\doorclosed.h"
-#include "icons\motionsensoron.h"
-#include "icons\motionsensoroff.h"
-#include "icons\sensorerror.h"
+#include "icons/dooropen.h"
+#include "icons/doorclosed.h"
+#include "icons/motionsensoron.h"
+#include "icons/motionsensoroff.h"
+#include "icons/sensorerror.h"
 
 #define White 0xFF
 #define LightGrey 0xBB
@@ -308,7 +308,7 @@ void DrawBottomBar()
         {
             float temp = getSensorAttributeValue(haFloatSensors[i].entityID, "current_temperature").toFloat();
             if (temp == 0)
-                getSensorValue(haFloatSensors[i].entityID).toFloat();
+                temp = getSensorValue(haFloatSensors[i].entityID).toFloat();
             DrawBottomTile(x, y, String(temp, 1) + "° C", haFloatSensors[i].entityName);
             x = x + BOTTOM_TILE_WIDTH;
             tiles--;
@@ -321,7 +321,7 @@ void DrawSwitchBar()
     setFont(OpenSans9B);
     int x = 3;
     int y = 23;
-    for (int i = 0; i < 12; i++){
+    for (int i = 0; i < sizeof(haEntities) / sizeof(haEntities[0]); i++){
         if (haEntities[i].entityName != "") {
           if (haEntities[i].entityType == entity_type::SWITCH ||
               haEntities[i].entityType == entity_type::LIGHT ||
@@ -354,7 +354,7 @@ void DrawSensorBar()
     setFont(OpenSans9B);
     int x = 3;
     int y = 345;
-    for (int i = 0; i < 8; i++){
+    for (int i = 0; i < sizeof(haSensors) / sizeof(haSensors[0]); i++){
         if (haSensors[i].entityType == sensor_type::DOOR ||
             haSensors[i].entityType == sensor_type::MOTION )
         {
