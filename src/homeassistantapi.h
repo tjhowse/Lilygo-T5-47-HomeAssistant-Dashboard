@@ -119,16 +119,27 @@ String getSensorAttributeValue(String entity, String attribute)
         Serial.println(error.f_str());
         return "";
     }
+    // read attribute
     String attr = doc["attributes"][attribute];
-    Serial.println(entity + "/" + attribute + ": " + attr);
     if (attr != NULL && attr != "" && attr != "null")
     {
+        Serial.println("  - " + entity + ".Attributes[" + attribute + "]: " + attr);
         return attr;
     }
+    // try entity properties
+    String coreAttr = doc[attribute];
+    if (coreAttr != NULL && coreAttr != "" && coreAttr != "null")
+    {
+        Serial.println("  - " + entity + "[" + attribute + "]: " + coreAttr);
+        return coreAttr;
+    }
+
+    Serial.println("  - " + entity + ".Attributes[" + attribute + "]: " + attr);
+    return "";
 }
 
 float getSensorFloatValue(String entity)
 {
     String state = getSensorValue(entity);
-    return state.toFloat();    
+    return  state.toFloat();
 }

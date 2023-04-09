@@ -55,6 +55,7 @@
 #include "icons/warning.h"
 #include "icons/plantwateringlow.h"
 #include "icons/plantwateringok.h"
+#include "icons/batteryempty.h"
 
 // sensor icons
 #include "icons/dooropen.h"
@@ -80,18 +81,21 @@
 #define SENSOR_TILE_HEIGHT     110
 #define SENSOR_TILE_IMG_WIDTH  64
 #define SENSOR_TILE_IMG_HEIGHT 64
-#define BOTTOM_TILE_WIDTH      320
+#define BOTTOM_TILE_WIDTH      240 // 4x = 240, 3x = 320
 #define BOTTOM_TILE_HEIGHT     90
+
+// if below, plant icon is changed to watering can icon
+#define WATERING_SOIL_LIMIT 80
 
 
 // deep sleep configurations
-long SleepDuration   = 1; // Sleep time in minutes, aligned to the nearest minute boundary, so if 30 will always update at 00 or 30 past the hour
+long SleepDuration   = 60; // Sleep time in minutes, aligned to the nearest minute boundary, so if 30 will always update at 00 or 30 past the hour
 int  WakeupHour      = 6;  // Wakeup after 06:00 to save battery power
 int  SleepHour       = 23; // Sleep  after 23:00 to save battery power
 
 long StartTime       = 0;
 long SleepTimer      = 0;
-int  CurrentHour = 0, CurrentMin = 0, CurrentSec = 0;
+int  CurrentHour = 0, CurrentMin = 0, CurrentSec = 0, CurrentDay = 0;
 
 int vref = 1100; // default battery vref
 int wifi_signal = 0;
@@ -100,42 +104,39 @@ int wifi_signal = 0;
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP);
 String formattedDate;
-String dayStamp;
+String dateStamp;
 String timeStamp;
 
-
-uint8_t StartWiFi() {
+uint8_t StartWiFi() 
+{
   Serial.println("\r\nConnecting to: " + String(ssid));
-  IPAddress dns(8, 8, 8, 8); // Google DNS
+  IPAddress dns(8, 8, 8, 8); // Use Google DNS
   WiFi.disconnect();
   WiFi.mode(WIFI_STA); // switch off AP
-  WiFi.setAutoConnect(true);
-  WiFi.setAutoReconnect(true);
+  //WiFi.setAutoConnect(true);
+  //WiFi.setAutoReconnect(true);
   WiFi.begin(ssid, password);
-  unsigned long start = millis();
-  uint8_t connectionStatus;
-  bool AttemptConnection = true;
-  while (AttemptConnection) {
-    connectionStatus = WiFi.status();
-    if (millis() > start + 15000) { // Wait 15-secs maximum
-      AttemptConnection = false;
-    }
-    if (connectionStatus == WL_CONNECTED || connectionStatus == WL_CONNECT_FAILED) {
-      AttemptConnection = false;
-    }
-    delay(50);
+  if (WiFi.waitForConnectResult() != WL_CONNECTED) 
+  {
+    Serial.printf("STA: Failed!\n");
+    WiFi.disconnect(true); // delete SID/PWD
+    delay(500);
+    Serial.println("\r\nConnecting to: " + String(ssid2));
+    WiFi.begin(ssid2, password2);
+    if (WiFi.waitForConnectResult() != WL_CONNECTED) 
+          Serial.printf("STA: 2. Failed!\n");
   }
-  if (connectionStatus == WL_CONNECTED) {
+  if (WiFi.status() == WL_CONNECTED) 
+  {
     wifi_signal = WiFi.RSSI(); // Get Wifi Signal strength now, because the WiFi will be turned off to save power!
-    timeClient.begin();
-    timeClient.setTimeOffset(gmtOffset_sec);
     Serial.println("WiFi connected at: " + WiFi.localIP().toString());
   }
-  else {
+  else 
+  {
     wifi_signal = 0;
-    Serial.println("WiFi connection *** FAILED ***"); 
-  } 
-  return connectionStatus;
+    Serial.println("WiFi connection *** FAILED ***");
+  }
+  return WiFi.status();
 }
 
 void StopWiFi() {
@@ -143,33 +144,78 @@ void StopWiFi() {
   WiFi.mode(WIFI_OFF);
 }
 
-// this will place a tile on screen that includes icon, staus and name of the HA entity
-void DrawTile(int x, int y, int width, int height, const uint8_t *image_data, String state, String label)
+
+void DrawBattery(int x, int y, uint8_t percentage)
 {
+  drawRect(x + 55, y - 15 , 40, 15, Black);
+  fillRect(x + 95, y - 9, 4, 6, Black);
+  fillRect(x + 57, y - 13, 36 * percentage / 100.0, 11, Black);
+}
+
+void DrawTileHigrow(int x, int y, int width, int height, const uint8_t *image_data, String label, String soil, String temp, String batt)
+{
+  drawRect(x, y, width, height, Black);
+  drawRect(x + 1, y + 1, width - 2, height - 2, Black);
+
+    // this assumes images are 100x100px size. make sure images are cropped to 100x100 before converting
+  int image_x = int((width - TILE_IMG_WIDTH)/2) + x; 
+  int image_y = int((height - TILE_IMG_HEIGHT)/2) + y;
+  drawImage(image_x, image_y, TILE_IMG_WIDTH, TILE_IMG_HEIGHT, image_data);
+
+  int label_txt_cursor_x = int(width / 2) + x;
+  int label_txt_cursor_y = y + 21;
+  drawString(label_txt_cursor_x, label_txt_cursor_y, label, CENTER);
+  
+  int state_txt_cursor_x = width / 2 + x - 1;
+  int state_txt_cursor_y = image_y + TILE_IMG_HEIGHT - 21;
+  if (soil.toInt() < WATERING_SOIL_LIMIT)
+    state_txt_cursor_x += 15;
+  drawString(state_txt_cursor_x, state_txt_cursor_y, soil + "%", CENTER);
+
+  state_txt_cursor_x = x + 5;
+  state_txt_cursor_y = image_y + TILE_IMG_HEIGHT + 22;
+  drawString(state_txt_cursor_x, state_txt_cursor_y, temp + "° C", LEFT);
+  
+  state_txt_cursor_x = x + width - 105;
+  DrawBattery(state_txt_cursor_x, state_txt_cursor_y, batt.toInt());
+  state_txt_cursor_x = x + width - 5;
+  state_txt_cursor_y -= 20;
+  drawString(state_txt_cursor_x, state_txt_cursor_y, batt + "%", RIGHT);  
+}
+
+// this will place a tile on screen that includes icon, staus and name of the HA entity, temperature and battery level
+void DrawTile(int x, int y, int width, int height, const uint8_t *image_data, String label, String state)
+{
+  drawRect(x, y, width, height, Black);
+  drawRect(x + 1, y + 1, width - 2, height - 2, Black);
+
   // this assumes images are 100x100px size. make sure images are cropped to 100x100 before converting
   int image_x = int((width - TILE_IMG_WIDTH)/2) + x; 
   int image_y = int((height - TILE_IMG_HEIGHT)/2) + y;
-  int top_txt_cursor_x = width / 2 + x;
-  int top_txt_cursor_y = image_y + TILE_IMG_HEIGHT + 10 + 12;
-  int bottom_txt_cursor_x = int(width / 2) + x;
-  int bottom_txt_cursor_y = y + 21;
-  drawRect(x, y, width, height, Black);
-  drawRect(x + 1, y + 1, width - 2, height - 2, Black);
   drawImage(image_x, image_y, TILE_IMG_WIDTH, TILE_IMG_HEIGHT, image_data);
-  drawString(top_txt_cursor_x, top_txt_cursor_y, label, CENTER);
-  drawString(bottom_txt_cursor_x, bottom_txt_cursor_y, state, CENTER);
+
+  int label_txt_cursor_x = int(width / 2) + x;
+  int label_txt_cursor_y = y + 21;
+  drawString(label_txt_cursor_x, label_txt_cursor_y, label, CENTER);
+
+  int state_txt_cursor_x = width / 2 + x;
+  int state_txt_cursor_y = image_y + TILE_IMG_HEIGHT + 10 + 12;
+  drawString(state_txt_cursor_x, state_txt_cursor_y, state, CENTER);
 }
 
+// this will place a tile on screen that includes icon, staus and name of the HA entity
 void DrawSensorTile(int x, int y, int width, int height, const uint8_t* image_data, String label)
 {
+  drawRect(x, y, width, height, Black);
+  drawRect(x+1, y+1, width-2, height-2, Black);
+
   // this assumes images are 128x128px size. make sure images are cropped to 128x128 before converting
   int image_x = int((width - SENSOR_TILE_IMG_WIDTH)/2) + x; 
   int image_y = y + 10;  
+  drawImage(image_x, image_y, SENSOR_TILE_IMG_WIDTH, SENSOR_TILE_IMG_HEIGHT, image_data);
+
   int txt_cursor_x = int(width/2) + x;
   int txt_cursor_y = image_y + SENSOR_TILE_IMG_HEIGHT + 10 + 12;
-  drawRect(x, y, width, height, Black);
-  drawRect(x+1, y+1, width-2, height-2, Black);
-  drawImage(image_x, image_y, SENSOR_TILE_IMG_WIDTH, SENSOR_TILE_IMG_HEIGHT, image_data);
   drawString(txt_cursor_x, txt_cursor_y, label, CENTER);
 }
 
@@ -177,22 +223,23 @@ void DrawTile(int x, int y, int state, int type, String name, String value)
 {
     int tile_width = TILE_WIDTH - TILE_GAP; 
     int tile_height = TILE_HEIGHT - TILE_GAP;
+
     String state_txt = "OFF";
     if (state == entity_state::ON) state_txt = "ON"; 
     else if (state == entity_state::UNAVAILABLE) state_txt = "UNAVAILABLE"; 
     switch (type)
     {
-    case entity_type::SWITCH:
+      case entity_type::SWITCH:
         if (state == entity_state::ON) DrawTile(x,y,tile_width,tile_height,switchon_data, name, state_txt); 
         else if (state == entity_state::OFF) DrawTile(x,y,tile_width,tile_height,switchoff_data, name, state_txt); 
         else DrawTile(x,y,tile_width,tile_height,warning_data, name, "SWITCH"); 
         break;
-    case entity_type::LIGHT:
+      case entity_type::LIGHT:
         if (state == entity_state::ON)  DrawTile(x,y,tile_width,tile_height,lightbulbon_data,name, state_txt);
         else if (state == entity_state::OFF)  DrawTile(x,y,tile_width,tile_height,lightbulboff_data,name, state_txt);
         else DrawTile(x,y,tile_width,tile_height,warning_data, name, "LIGHT"); 
         break;
-    case entity_type::FAN:
+      case entity_type::FAN:
         if (state == entity_state::ON)  DrawTile(x,y,tile_width,tile_height,fanon_data,name, state_txt);
         else if (state == entity_state::OFF)  DrawTile(x,y,tile_width,tile_height,fanoff_data,name, state_txt);
         else DrawTile(x,y,tile_width,tile_height,warning_data, name, "FAN"); 
@@ -202,37 +249,45 @@ void DrawTile(int x, int y, int state, int type, String name, String value)
         else if (state == entity_state::OFF)  DrawTile(x,y,tile_width,tile_height,exhaustfanoff_data,name, state_txt);
         else DrawTile(x,y,tile_width,tile_height,warning_data, name, "EXHAUST FAN"); 
         break;
-    case entity_type::AIRPURIFIER:
+      case entity_type::AIRPURIFIER:
         if (state == entity_state::ON)  DrawTile(x,y,tile_width,tile_height,airpurifieron_data,name, state_txt);
         else if (state == entity_state::OFF)  DrawTile(x,y,tile_width,tile_height,airpurifieroff_data,name, state_txt);
         else DrawTile(x,y,tile_width,tile_height,warning_data, name, "AIR PURIFIER"); 
         break;
-    case entity_type::WATERHEATER:
+      case entity_type::WATERHEATER:
         if (state == entity_state::ON)  DrawTile(x,y,tile_width,tile_height,waterheateron_data,name, state_txt);
         else if (state == entity_state::OFF)  DrawTile(x,y,tile_width,tile_height,waterheateroff_data,name, state_txt);
         else DrawTile(x,y,tile_width,tile_height,warning_data, name, "WATER HEATER"); 
         break;
-    case entity_type::PLUG:
+      case entity_type::PLUG:
         if (state == entity_state::ON)  DrawTile(x,y,tile_width,tile_height,plugon_data,name, state_txt);
         else if (state == entity_state::OFF)  DrawTile(x,y,tile_width,tile_height,plugoff_data,name, state_txt);
         else DrawTile(x,y,tile_width,tile_height,warning_data, name, "PLUG"); 
         break;
-    case entity_type::AIRCONDITIONER:
+      case entity_type::AIRCONDITIONER:
         if (state == entity_state::ON)  DrawTile(x,y,tile_width,tile_height,airconditioneron_data,name, state_txt);
         else if (state == entity_state::OFF)  DrawTile(x,y,tile_width,tile_height,airconditioneroff_data,name, state_txt);
         else DrawTile(x,y,tile_width,tile_height,warning_data, name, "AIR CONDITIONER"); 
-    break;
-  case entity_type::PLANT:
-    if (value.toInt() >= 80)
-      DrawTile(x, y, tile_width, tile_height, plantwateringok_data, name, value + "%");
-    else if (value.toInt() > 0)
-      DrawTile(x, y, tile_width, tile_height, plantwateringlow_data, name, value + "%");
-    else
-      DrawTile(x, y, tile_width, tile_height, warning_data, name, "PLANT");
         break;
-    default:
+      case entity_type::PLANT:
+        if (value.toInt() >= WATERING_SOIL_LIMIT) DrawTile(x, y, tile_width, tile_height, plantwateringok_data, name, value + "%");
+        else if (value.toInt() > 5) DrawTile(x, y, tile_width, tile_height, plantwateringlow_data, name, value + "%");
+        else DrawTile(x, y, tile_width, tile_height, warning_data, name, value + "%");
+        break;
+      default:
         break;
     }
+}
+
+void DrawTileHigrow(int x, int y, int state, int type, String name, String soil, String temp, String batt)
+{
+    int tile_width = TILE_WIDTH - TILE_GAP; 
+    int tile_height = TILE_HEIGHT - TILE_GAP;
+
+    if (batt.toInt() == -1) DrawTileHigrow(x, y, tile_width, tile_height, batteryempty_data, name, soil, temp, batt);
+    else if (soil.toInt() >= WATERING_SOIL_LIMIT) DrawTileHigrow(x, y, tile_width, tile_height, plantwateringok_data, name, soil, temp, batt);
+    else if (soil.toInt() > 5) DrawTileHigrow(x, y, tile_width, tile_height, plantwateringlow_data, name, soil, temp, batt);
+    else DrawTileHigrow(x, y, tile_width, tile_height, warning_data, name, soil, temp, batt);
 }
 
 void DrawSensorTile(int x, int y, int state, int type, String name)
@@ -241,17 +296,17 @@ void DrawSensorTile(int x, int y, int state, int type, String name)
     int tile_height = SENSOR_TILE_HEIGHT - TILE_GAP;
     switch (type)
     {
-    case sensor_type::DOOR:
+      case sensor_type::DOOR:
         if (state == entity_state::ON) DrawSensorTile(x,y,tile_width,tile_height,dooropen_data, name); 
         else if (state == entity_state::OFF) DrawSensorTile(x,y,tile_width,tile_height,doorclosed_data, name); 
         else DrawSensorTile(x,y,tile_width,tile_height,sensorerror_data, name); 
         break;
-    case sensor_type::MOTION:
+      case sensor_type::MOTION:
         if (state == entity_state::ON) DrawSensorTile(x,y,tile_width,tile_height,motionsensoron_data, name); 
         else if (state == entity_state::OFF) DrawSensorTile(x,y,tile_width,tile_height,motionsensoroff_data, name); 
         else DrawSensorTile(x,y,tile_width,tile_height,sensorerror_data, name); 
         break;
-    default:
+      default:
         break;
     }
 }
@@ -270,7 +325,7 @@ void DrawBottomTile(int x, int y, String value, String name)
 
 void DrawBottomBar()
 {
-    int tiles = 3;
+    int tiles = sizeof(haFloatSensors);
     float totalEnergy = 0;
     float totalPower  = 0;
     String totalEnergyName;
@@ -308,7 +363,7 @@ void DrawBottomBar()
         {
             float temp = getSensorAttributeValue(haFloatSensors[i].entityID, "current_temperature").toFloat();
             if (temp == 0)
-                temp = getSensorValue(haFloatSensors[i].entityID).toFloat();
+                temp = getSensorFloatValue(haFloatSensors[i].entityID);
             DrawBottomTile(x, y, String(temp, 1) + "° C", haFloatSensors[i].entityName);
             x = x + BOTTOM_TILE_WIDTH;
             tiles--;
@@ -333,6 +388,29 @@ void DrawSwitchBar()
               haEntities[i].entityType == entity_type::AIRCONDITIONER)
           {            
               DrawTile(x, y, checkOnOffState(haEntities[i].entityID), haEntities[i].entityType, haEntities[i].entityName, "");
+          }
+          else if (haEntities[i].entityType == entity_type::HIGROW)
+          {
+              String soilVal = getSensorValue(haEntities[i].entityID+"_soil");
+              String tempVal = String(getSensorFloatValue(haEntities[i].entityID+"_temperature"), 1);
+              String battVal = getSensorValue(haEntities[i].entityID+"_battery");
+
+              String lastUpdate = getSensorAttributeValue(haEntities[i].entityID+"_battery", "last_updated");
+              int splitT = lastUpdate.indexOf("T");
+              String lastUpdateDate = lastUpdate.substring(0, splitT);
+              Serial.println("lastUpdateDate: "+lastUpdateDate);
+              String lastUpdateDayStr = lastUpdateDate.substring(8,10);
+              Serial.println("lastUpdateDayStr: "+lastUpdateDayStr);
+              int lastUpdateDay = lastUpdateDayStr.toInt();
+              if (lastUpdateDay != CurrentDay && lastUpdateDay != CurrentDay-1) // todo: what about end of month? Let's ignore that for now
+              {
+                Serial.println("Batt of " + haEntities[i].entityID + " last value " + battVal + ", last update on day " + lastUpdateDay + " != today (" + CurrentDay + ") or yesterday (" + (CurrentDay - 1) + ") - battery might be empty");
+                DrawTileHigrow(x, y, 0, haEntities[i].entityType, haEntities[i].entityName, soilVal, tempVal, "-1"); // presume battery empty
+              }
+              else
+              {
+                DrawTileHigrow(x, y, 0, haEntities[i].entityType, haEntities[i].entityName, soilVal, tempVal, battVal);
+              }
           }
           else 
           {
@@ -385,22 +463,6 @@ void DrawRSSI(int x, int y, int rssi) {
     drawString(x , y, "x", LEFT);
 }
 
-// void DrawBattery(int x, int y) {
-//   uint8_t percentage = 100;
-//   float voltage = analogRead(35) / 4096.0 * 7.46;
-//   if (voltage > 1 ) { // Only display if there is a valid reading
-//     Serial.println("Voltage = " + String(voltage));
-//     percentage = 2836.9625 * pow(voltage, 4) - 43987.4889 * pow(voltage, 3) + 255233.8134 * pow(voltage, 2) - 656689.7123 * voltage + 632041.7303;
-//     if (voltage >= 4.20) percentage = 100;
-//     if (voltage <= 3.20) percentage = 0;  // orig 3.5
-//     drawRect(x + 55, y - 15 , 40, 15, Black);
-//     fillRect(x + 95, y - 9, 4, 6, Black);
-//     fillRect(x + 57, y - 13, 36 * percentage / 100.0, 11, Black);
-//     drawString(x, y, String(percentage) + "%", LEFT);
-//     //drawString(x + 13, y + 5,  String(voltage, 2) + "v", CENTER);
-//   }
-// }
-
 void DrawBattery(int x, int y) {
   uint8_t percentage = 100;
   esp_adc_cal_characteristics_t adc_chars;
@@ -415,11 +477,9 @@ void DrawBattery(int x, int y) {
     percentage = 2836.9625 * pow(voltage, 4) - 43987.4889 * pow(voltage, 3) + 255233.8134 * pow(voltage, 2) - 656689.7123 * voltage + 632041.7303;
     if (voltage >= 4.20) percentage = 100;
     if (voltage <= 3.20) percentage = 0;  // orig 3.5
-     drawRect(x + 55, y - 15 , 40, 15, Black);
-     fillRect(x + 95, y - 9, 4, 6, Black);
-     fillRect(x + 57, y - 13, 36 * percentage / 100.0, 11, Black);
-     drawString(x, y, String(percentage) + "%", LEFT);
-     drawString(x + 130, y,  String(voltage, 2) + "v", CENTER);
+    DrawBattery(x, y, percentage);
+    drawString(x, y, String(percentage) + "%", LEFT);
+    drawString(x + 130, y,  String(voltage, 2) + "v", CENTER);
   }
 }
 
@@ -432,12 +492,15 @@ void SetupTime()
     }
     formattedDate = timeClient.getFormattedDate();
     int splitT = formattedDate.indexOf("T");
-    dayStamp = formattedDate.substring(0, splitT);
+    dateStamp = formattedDate.substring(0, splitT);
     timeStamp = formattedDate.substring(splitT+1, formattedDate.length()-1);
+    CurrentDay = dateStamp.substring(8,10).toInt();
 
     CurrentHour = timeClient.getHours();
     CurrentMin  = timeClient.getMinutes();
     CurrentSec  = timeClient.getSeconds();
+
+    Serial.println("Current day: " + String(CurrentDay) + " hour: " + String(CurrentHour) + " min: " + String(CurrentMin) + " sec: " + String(CurrentSec));
 }
 
 void DisplayGeneralInfoSection()
@@ -446,7 +509,7 @@ void DisplayGeneralInfoSection()
     Serial.println("Getting haStatus...");
     HAConfigurations haConfigs = getHaStatus();
     Serial.println("drawing status line...");    
-    drawString(EPD_WIDTH/2, 18, dayStamp + " - " +  timeStamp + " (HA Ver:" + haConfigs.version + "/" + haConfigs.haStatus + ", TZ:" + haConfigs.timeZone + ")", CENTER);
+    drawString(EPD_WIDTH/2, 18, dateStamp + " - " +  timeStamp + " (HA Ver:" + haConfigs.version + "/" + haConfigs.haStatus + ", TZ:" + haConfigs.timeZone + ")", CENTER);
 }
 
 void DisplayStatusSection() {
@@ -468,11 +531,11 @@ void DrawHAScreen()
     
     DisplayStatusSection();
     DisplayGeneralInfoSection();
-    Serial.println("Drawing switchBar...");
+    Serial.println("Drawing (large icon) switchBar...");
     DrawSwitchBar();
-    Serial.println("Drawing sensorBar...");
+    Serial.println("Drawing (small icon) sensorBar...");
     DrawSensorBar();
-    Serial.println("Drawing bottomBar...");
+    Serial.println("Drawing (wide value) bottomBar...");
     DrawBottomBar();
 
     epd_update();

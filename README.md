@@ -34,5 +34,6 @@ Primary modifications are:
 - **Deep Sleep** to avoid battery drainage
 - Using original LilyGo-EPD47 lib to work better with T5 board
 - Support for **soil moisture sensors** (plant watering sensors)
+    - Special support for **[LILYGO T-HIGROW sensor](https://www.aliexpress.com/item/32815782900.html)** with battery level and temperature display
 - Some refactoring, bugfixing and code cleanup
 - Some minior UI changes, where I liked it different
