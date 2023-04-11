@@ -1,3 +1,6 @@
+// First of all:
+// Use this file as template and copy to "configurations.h" and customize your settings.
+
 // Start of reserved configurations. Do not change if you dont know what you are doing
 enum entity_state {ON, OFF, ERROR, UNAVAILABLE};
 enum entity_type {SWITCH, LIGHT, EXFAN, FAN, AIRPURIFIER, WATERHEATER, PLUG, AIRCONDITIONER, PLANT};
@@ -23,6 +26,10 @@ struct HAConfigurations{
 // Change to your WiFi credentials
 const char* ssid        = "WIFI SSID";
 const char* password    = "WIFI PASSWORD";
+// In case of two different locations or for fallback, use second WiFi credentials
+const char* ssid2        = "";
+const char* password2    = "";
+
 
 // url to HA server. Only http is supported for now!
 const String ha_server  = "http://192.168.2.138:8123";
@@ -43,8 +50,8 @@ HAEntities haEntities [] {
     {"ROOF", "switch.tasmota_2", LIGHT, ONOFF},
     {"FR. DOOR", "switch.tasmota_3", LIGHT, ONOFF},
     {"BAR", "switch.exhaust_fan", EXFAN, ONOFF},
-    {"STAIRS2", "switch.stairs2", LIGHT, ONOFF},
-    {"STAIRS1", "switch.stairs_1_zigbee_switch_on_off", LIGHT, ONOFF},
+    {"ROSE", "sensor.rose", HIGROW, VALUE},
+    {"BENJAMIN", "sensor.benjamin", HIGROW, VALUE},
     {"M. BEDROOM", "fan.xiaomi_air_purifier_2s", AIRPURIFIER, ONOFF},
     {"HEATER", "switch.water_heater_2", WATERHEATER, ONOFF},
     {"FR. DOOR", "switch.tasmota_3", LIGHT, ONOFF},
@@ -72,19 +79,20 @@ HAEntities haSensors[] {
 
 /**
  *  Sensors are shown in last row. Supported types are ENERGYMETER, ENERGYMETERPWR and  and TEMP currently. Different icons are used for easy recognition
- *  Only 3 different entities are supported - 3 cols. ENERGYMETER and ENERGYMETERPWR are grouped together and shown as total
+ *  Only 4 different entities are supported - 4 cols. ENERGYMETER and ENERGYMETERPWR are grouped together and shown as total
  *  Entities follow the format of { <Name that should be displayed>, <entity_id in HA>, <ENERGYMETER|ENERGYMETERPWR|TEMP>, <VALUE>}
  *  User a short entity name so it can fit nicely in 120px width in 9px font. 
  *  You can have only one ENERGYMETER type and ENERGYMETERPWR type tile in the display. ENERGYMETER and ENERGYMETERPWR are grouped together and shown as total
- *  However you can have multiple temrature tiles (up to 3 if you are not using ENERGYMETER and ENERGYMETERPWR in you HA instances) 
+ *  However you can have multiple temrature tiles (up to 4 if you are not using ENERGYMETER and ENERGYMETERPWR in you HA instances) 
  *  Or you can customize the code the way you see fit (advanced)
 **/
 HAEntities haFloatSensors[] {
-    {"TOTAL ENERGY TODAY", "sensor.energy_meter_floor_03_energy_today", ENERGYMETER, VALUE},
-    {"TOTAL ENERGY TODAY", "sensor.tasmota_energy_today", ENERGYMETER, VALUE},
-    {"TOTAL ENERGY TODAY", "sensor.energy_meter_floor_01_energy_today", ENERGYMETER, VALUE},
-    {"CURRENT POWER", "sensor.energy_meter_floor_03_energy_power", ENERGYMETERPWR, VALUE},
-    {"CURRENT POWER", "sensor.energy_meter_floor_02_energy_power", ENERGYMETERPWR, VALUE},
-    {"CURRENT POWER", "sensor.energy_meter_floor_01_energy_power", ENERGYMETERPWR, VALUE},
-    {"ROOM TEMP", "sensor.xiaomi_airpurifier_temp", TEMP, VALUE},
+    {"TOTAL ENERGY TODAY", "sensor.energy_meter_floor_03_energy_today", ENERGYMETER, VALUE},  // 1st tile
+    {"TOTAL ENERGY TODAY", "sensor.tasmota_energy_today", ENERGYMETER, VALUE},                // 1st tile
+    {"TOTAL ENERGY TODAY", "sensor.energy_meter_floor_01_energy_today", ENERGYMETER, VALUE},  // 1st tile
+    {"CURRENT POWER", "sensor.energy_meter_floor_03_energy_power", ENERGYMETERPWR, VALUE},    // 2nd tile
+    {"CURRENT POWER", "sensor.energy_meter_floor_02_energy_power", ENERGYMETERPWR, VALUE},    // 2nd tile
+    {"CURRENT POWER", "sensor.energy_meter_floor_01_energy_power", ENERGYMETERPWR, VALUE},    // 2nd tile
+    {"ROOM 1 TEMP", "sensor.xiaomi_airpurifier_temp", TEMP, VALUE},                           // 3rd tile
+    {"ROOM 2 TEMP", "sensor.xiaomi_airpurifier_temp", TEMP, VALUE},                           // 4th tile
 };
