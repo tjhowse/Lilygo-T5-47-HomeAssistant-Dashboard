@@ -107,25 +107,43 @@ String formattedDate;
 String dateStamp;
 String timeStamp;
 
-uint8_t StartWiFi() 
-{
-  Serial.println("\r\nConnecting to: " + String(ssid));
+uint8_t StartWiFi() {
   IPAddress dns(8, 8, 8, 8); // Use Google DNS
   WiFi.disconnect();
   WiFi.mode(WIFI_STA); // switch off AP
-  //WiFi.setAutoConnect(true);
-  //WiFi.setAutoReconnect(true);
-  WiFi.begin(ssid, password);
-  if (WiFi.waitForConnectResult() != WL_CONNECTED) 
-  {
-    Serial.printf("STA: Failed!\n");
-    WiFi.disconnect(true); // delete SID/PWD
-    delay(500);
-    Serial.println("\r\nConnecting to: " + String(ssid2));
-    WiFi.begin(ssid2, password2);
-    if (WiFi.waitForConnectResult() != WL_CONNECTED) 
-          Serial.printf("STA: 2. Failed!\n");
+  WiFi.setAutoConnect(true);
+  WiFi.setAutoReconnect(true);
+  unsigned long start = millis();
+  bool AttemptConnection = true;
+  while (AttemptConnection) {
+    Serial.println("\r\nConnecting to: " + String(ssid));
+    WiFi.begin(ssid, password);
+    if (WiFi.waitForConnectResult() != WL_CONNECTED) {
+      Serial.println("STA: Failed to connect to: " + String(ssid));
+      WiFi.disconnect(true); // delete SID/PWD
+      delay(500);
+
+      if (ssid2 != "") {
+        Serial.println("\r\nConnecting to: " + String(ssid2));
+        WiFi.begin(ssid2, password2);
+        if (WiFi.waitForConnectResult() != WL_CONNECTED) {
+          Serial.println("STA: Failed to connect to: " + String(ssid2));
+          WiFi.disconnect(true); // delete SID/PWD
+          delay(500);
+        }
+        else {
+          AttemptConnection = false;
+        }
+      }
+      if (millis() > start + 15000) { // Wait 15-secs maximum
+        AttemptConnection = false;
+      }
+    }
+    else {
+      AttemptConnection = false;
+    }
   }
+
   if (WiFi.status() == WL_CONNECTED) 
   {
     wifi_signal = WiFi.RSSI(); // Get Wifi Signal strength now, because the WiFi will be turned off to save power!
@@ -138,12 +156,6 @@ uint8_t StartWiFi()
   }
   return WiFi.status();
 }
-
-void StopWiFi() {
-  WiFi.disconnect();
-  WiFi.mode(WIFI_OFF);
-}
-
 
 void DrawBattery(int x, int y, uint8_t percentage)
 {
@@ -180,7 +192,10 @@ void DrawTileHigrow(int x, int y, int width, int height, const uint8_t *image_da
   DrawBattery(state_txt_cursor_x, state_txt_cursor_y, batt.toInt());
   state_txt_cursor_x = x + width - 5;
   state_txt_cursor_y -= 20;
+  GFXfont lastFont = currentFont;
+  setFont(OpenSans8B);
   drawString(state_txt_cursor_x, state_txt_cursor_y, batt + "%", RIGHT);  
+  setFont(lastFont);
 }
 
 // this will place a tile on screen that includes icon, staus and name of the HA entity, temperature and battery level
@@ -398,9 +413,7 @@ void DrawSwitchBar()
               String lastUpdate = getSensorAttributeValue(haEntities[i].entityID+"_battery", "last_updated");
               int splitT = lastUpdate.indexOf("T");
               String lastUpdateDate = lastUpdate.substring(0, splitT);
-              Serial.println("lastUpdateDate: "+lastUpdateDate);
               String lastUpdateDayStr = lastUpdateDate.substring(8,10);
-              Serial.println("lastUpdateDayStr: "+lastUpdateDayStr);
               int lastUpdateDay = lastUpdateDayStr.toInt();
               if (lastUpdateDay != CurrentDay && lastUpdateDay != CurrentDay-1) // todo: what about end of month? Let's ignore that for now
               {
