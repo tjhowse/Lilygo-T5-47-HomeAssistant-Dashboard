@@ -161,7 +161,8 @@ void DrawBattery(int x, int y, uint8_t percentage)
 {
   drawRect(x + 55, y - 15 , 40, 15, Black);
   fillRect(x + 95, y - 9, 4, 6, Black);
-  fillRect(x + 57, y - 13, 36 * percentage / 100.0, 11, Black);
+  if (percentage > 0) 
+    fillRect(x + 57, y - 13, 36 * percentage / 100.0, 11, Black);
 }
 
 void DrawTileHigrow(int x, int y, int width, int height, const uint8_t *image_data, String label, String soil, String temp, String batt)
@@ -178,24 +179,27 @@ void DrawTileHigrow(int x, int y, int width, int height, const uint8_t *image_da
   int label_txt_cursor_y = y + 21;
   drawString(label_txt_cursor_x, label_txt_cursor_y, label, CENTER);
   
-  int state_txt_cursor_x = width / 2 + x - 1;
-  int state_txt_cursor_y = image_y + TILE_IMG_HEIGHT - 21;
-  if (soil.toInt() < WATERING_SOIL_LIMIT)
-    state_txt_cursor_x += 15;
-  drawString(state_txt_cursor_x, state_txt_cursor_y, soil + "%", CENTER);
+  if (batt != "-1")
+  {
+    int state_txt_cursor_x = width / 2 + x - 1;
+    int state_txt_cursor_y = image_y + TILE_IMG_HEIGHT - 21;
+    if (soil.toInt() < WATERING_SOIL_LIMIT)
+      state_txt_cursor_x += 15;
+    drawString(state_txt_cursor_x, state_txt_cursor_y, soil + "%", CENTER);
 
-  state_txt_cursor_x = x + 5;
-  state_txt_cursor_y = image_y + TILE_IMG_HEIGHT + 22;
-  drawString(state_txt_cursor_x, state_txt_cursor_y, temp + "° C", LEFT);
+    state_txt_cursor_x = x + 5;
+    state_txt_cursor_y = image_y + TILE_IMG_HEIGHT + 22;
+    drawString(state_txt_cursor_x, state_txt_cursor_y, temp + "° C", LEFT);
   
-  state_txt_cursor_x = x + width - 105;
-  DrawBattery(state_txt_cursor_x, state_txt_cursor_y, batt.toInt());
-  state_txt_cursor_x = x + width - 5;
-  state_txt_cursor_y -= 20;
-  GFXfont lastFont = currentFont;
-  setFont(OpenSans8B);
-  drawString(state_txt_cursor_x, state_txt_cursor_y, batt + "%", RIGHT);  
-  setFont(lastFont);
+    state_txt_cursor_x = x + width - 105;
+    DrawBattery(state_txt_cursor_x, state_txt_cursor_y, batt.toInt());
+    state_txt_cursor_x = x + width - 5;
+    state_txt_cursor_y -= 20;
+    GFXfont lastFont = currentFont;
+    setFont(OpenSans8B);
+    drawString(state_txt_cursor_x, state_txt_cursor_y, batt + "%", RIGHT);  
+    setFont(lastFont);
+  }
 }
 
 // this will place a tile on screen that includes icon, staus and name of the HA entity, temperature and battery level
