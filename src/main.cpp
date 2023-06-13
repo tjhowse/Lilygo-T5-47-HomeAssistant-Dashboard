@@ -60,6 +60,8 @@
 // sensor icons
 #include "icons/dooropen.h"
 #include "icons/doorclosed.h"
+#include "icons/windowopen.h"
+#include "icons/windowclosed.h"
 #include "icons/motionsensoron.h"
 #include "icons/motionsensoroff.h"
 #include "icons/sensorerror.h"
@@ -320,6 +322,11 @@ void DrawSensorTile(int x, int y, int state, int type, String name)
         else if (state == entity_state::OFF) DrawSensorTile(x,y,tile_width,tile_height,doorclosed_data, name); 
         else DrawSensorTile(x,y,tile_width,tile_height,sensorerror_data, name); 
         break;
+      case sensor_type::WINDOW:
+        if (state == entity_state::ON) DrawSensorTile(x,y,tile_width,tile_height,windowopen_data, name); 
+        else if (state == entity_state::OFF) DrawSensorTile(x,y,tile_width,tile_height,windowclosed_data, name); 
+        else DrawSensorTile(x,y,tile_width,tile_height,sensorerror_data, name); 
+        break;
       case sensor_type::MOTION:
         if (state == entity_state::ON) DrawSensorTile(x,y,tile_width,tile_height,motionsensoron_data, name); 
         else if (state == entity_state::OFF) DrawSensorTile(x,y,tile_width,tile_height,motionsensoroff_data, name); 
@@ -414,7 +421,7 @@ void DrawSwitchBar()
               String tempVal = String(getSensorFloatValue(haEntities[i].entityID+"_temperature"), 1);
               String battVal = getSensorValue(haEntities[i].entityID+"_battery");
 
-              String lastUpdate = getSensorAttributeValue(haEntities[i].entityID+"_battery", "last_updated");
+              String lastUpdate = getSensorAttributeValue(haEntities[i].entityID+"_time", "last_updated");
               int splitT = lastUpdate.indexOf("T");
               String lastUpdateDate = lastUpdate.substring(0, splitT);
               String lastUpdateDayStr = lastUpdateDate.substring(8,10);
@@ -451,6 +458,7 @@ void DrawSensorBar()
     int y = 345;
     for (int i = 0; i < sizeof(haSensors) / sizeof(haSensors[0]); i++){
         if (haSensors[i].entityType == sensor_type::DOOR ||
+            haSensors[i].entityType == sensor_type::WINDOW ||
             haSensors[i].entityType == sensor_type::MOTION )
         {
       if (haSensors[i].entityName != "")

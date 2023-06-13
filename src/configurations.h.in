@@ -5,7 +5,7 @@
 enum entity_state {ON, OFF, ERROR, UNAVAILABLE};
 enum entity_type {SWITCH, LIGHT, EXFAN, FAN, AIRPURIFIER, WATERHEATER, PLUG, AIRCONDITIONER, PLANT};
 enum entity_state_type {ONOFF, VALUE};
-enum sensor_type {DOOR, MOTION, ENERGYMETER, TEMP, ENERGYMETERPWR};
+enum sensor_type {DOOR, WINDOW, MOTION, ENERGYMETER, TEMP, ENERGYMETERPWR};
 struct HAEntities{
     String entityName;
     String entityID;
@@ -61,13 +61,13 @@ HAEntities haEntities [] {
 };
 
 /**
- *  Sensors are shown in 3rd row. Supported types are DOOR and MOTION currently. Different icons are used for easy recognition
+ *  Sensors are shown in 3rd row. Supported types are DOOR, WINDOW and MOTION currently. Different icons are used for easy recognition
  *  Only 8 different entities are supported - 8 cols. 
- *  Entities follow the format of { <Name that should be displayed>, <entity_id in HA>, <DOOR|MOTION>, <ONOFF>}
+ *  Entities follow the format of { <Name that should be displayed>, <entity_id in HA>, <DOOR|WINDOW|MOTION>, <ONOFF>}
  *  User a short entity name so it can fit nicely in 120px width in 9px font. 
 **/
 HAEntities haSensors[] {
-    {"M. BED", "binary_sensor.master_bedroom_door_sensor_ias_zone", DOOR, ONOFF},
+    {"M. BED", "binary_sensor.master_bedroom_door_sensor_ias_zone", WINDOW, ONOFF},
     {"STAIRS 2", "binary_sensor.stairs_2_motion_sensor_ias_zone", MOTION, ONOFF},
     {"STAIRS 1", "binary_sensor.stairs_1_motion_sensor_ias_zone", MOTION, ONOFF},
     {"BAR", "binary_sensor.bar_area_motion_sensor_ias_zone", MOTION, ONOFF},
