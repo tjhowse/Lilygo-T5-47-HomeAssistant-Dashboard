@@ -87,8 +87,7 @@
 #define BOTTOM_TILE_HEIGHT     90
 
 // if below, plant icon is changed to watering can icon
-#define WATERING_SOIL_LIMIT 80
-
+#define WATERING_SOIL_LIMIT 75
 
 // deep sleep configurations
 long SleepDuration   = 60; // Sleep time in minutes, aligned to the nearest minute boundary, so if 30 will always update at 00 or 30 past the hour
@@ -108,6 +107,9 @@ NTPClient timeClient(ntpUDP);
 String formattedDate;
 String dateStamp;
 String timeStamp;
+
+// defualt strings
+String str_unavail = "unavail.";
 
 uint8_t StartWiFi() {
   IPAddress dns(8, 8, 8, 8); // Use Google DNS
@@ -222,6 +224,29 @@ void DrawTile(int x, int y, int width, int height, const uint8_t *image_data, St
   int state_txt_cursor_x = width / 2 + x;
   int state_txt_cursor_y = image_y + TILE_IMG_HEIGHT + 10 + 12;
   drawString(state_txt_cursor_x, state_txt_cursor_y, state, CENTER);
+}
+
+void DrawTempSensorTile(int x, int y, float temp, String label)
+{
+  int tile_width = SENSOR_TILE_WIDTH - TILE_GAP;
+  int tile_height = SENSOR_TILE_HEIGHT - TILE_GAP;
+  drawRect(x, y, tile_width, tile_height, Black);
+  drawRect(x + 1, y + 1, tile_width - 2, tile_height - 2, Black);
+
+  int temp_x = int(tile_width / 2) + x;
+  int temp_y = int(tile_height / 2) + y + 10;
+  if (temp != 0)
+  {
+    setFont(OpenSans18B);
+    drawString(temp_x, temp_y, String(temp, 1) + "°", CENTER);
+  }
+  else
+    drawString(temp_x, temp_y, str_unavail, CENTER);
+
+  int txt_cursor_x = int(tile_width / 2) + x;
+  int txt_cursor_y = y + 10 + SENSOR_TILE_IMG_HEIGHT + 10 + 12;
+  setFont(OpenSans9B);
+  drawString(txt_cursor_x, txt_cursor_y, label, CENTER);
 }
 
 // this will place a tile on screen that includes icon, staus and name of the HA entity
@@ -390,7 +415,10 @@ void DrawBottomBar()
             float temp = getSensorAttributeValue(haFloatSensors[i].entityID, "current_temperature").toFloat();
             if (temp == 0)
                 temp = getSensorFloatValue(haFloatSensors[i].entityID);
-            DrawBottomTile(x, y, String(temp, 1) + "° C", haFloatSensors[i].entityName);
+            if (temp != 0)
+              DrawBottomTile(x, y, String(temp, 1) + "° C", haFloatSensors[i].entityName);
+            else
+              DrawBottomTile(x, y, str_unavail, haFloatSensors[i].entityName);
             x = x + BOTTOM_TILE_WIDTH;
             tiles--;
         }
@@ -421,7 +449,7 @@ void DrawSwitchBar()
               String tempVal = String(getSensorFloatValue(haEntities[i].entityID+"_temperature"), 1);
               String battVal = getSensorValue(haEntities[i].entityID+"_battery");
 
-              String lastUpdate = getSensorAttributeValue(haEntities[i].entityID+"_time", "last_updated");
+              String lastUpdate = getSensorValue(haEntities[i].entityID+"_updated");
               int splitT = lastUpdate.indexOf("T");
               String lastUpdateDate = lastUpdate.substring(0, splitT);
               String lastUpdateDayStr = lastUpdateDate.substring(8,10);
@@ -457,12 +485,18 @@ void DrawSensorBar()
     int x = 3;
     int y = 345;
     for (int i = 0; i < sizeof(haSensors) / sizeof(haSensors[0]); i++){
-        if (haSensors[i].entityType == sensor_type::DOOR ||
+        if ((haSensors[i].entityType == sensor_type::DOOR || 
             haSensors[i].entityType == sensor_type::WINDOW ||
-            haSensors[i].entityType == sensor_type::MOTION )
+            haSensors[i].entityType == sensor_type::MOTION ) && haSensors[i].entityName != "")
         {
-      if (haSensors[i].entityName != "")
             DrawSensorTile(x,y,checkOnOffState(haSensors[i].entityID),haSensors[i].entityType, haSensors[i].entityName);
+        }
+        if (haSensors[i].entityType == sensor_type::TEMP && haSensors[i].entityName != "")
+        {
+            float temp = getSensorAttributeValue(haSensors[i].entityID, "current_temperature").toFloat();
+            if (temp == 0)
+                temp = getSensorFloatValue(haSensors[i].entityID);
+            DrawTempSensorTile(x, y, temp, haSensors[i].entityName);
         }
         x = x + SENSOR_TILE_WIDTH;
     }
