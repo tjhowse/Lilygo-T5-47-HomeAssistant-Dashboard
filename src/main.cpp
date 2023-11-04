@@ -90,7 +90,7 @@
 #define WATERING_SOIL_LIMIT 75
 
 // deep sleep configurations
-long SleepDuration   = 60; // Sleep time in minutes, aligned to the nearest minute boundary, so if 30 will always update at 00 or 30 past the hour
+long SleepDuration   = 1; // Sleep time in minutes, aligned to the nearest minute boundary, so if 30 will always update at 00 or 30 past the hour
 int  WakeupHour      = 6;  // Wakeup after 06:00 to save battery power
 int  SleepHour       = 23; // Sleep  after 23:00 to save battery power
 
@@ -103,7 +103,7 @@ int wifi_signal = 0;
 
 // required for NTP time
 WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP);
+NTPClient timeClient(ntpUDP, "192.168.1.50", gmtOffset_sec);
 String formattedDate;
 String dateStamp;
 String timeStamp;
@@ -112,7 +112,7 @@ String timeStamp;
 String str_unavail = "unavail.";
 
 uint8_t StartWiFi() {
-  IPAddress dns(8, 8, 8, 8); // Use Google DNS
+  IPAddress dns(192,168,1,50); // Use tinman DNS
   WiFi.disconnect();
   WiFi.mode(WIFI_STA); // switch off AP
   WiFi.setAutoConnect(true);
@@ -148,12 +148,12 @@ uint8_t StartWiFi() {
     }
   }
 
-  if (WiFi.status() == WL_CONNECTED) 
+  if (WiFi.status() == WL_CONNECTED)
   {
     wifi_signal = WiFi.RSSI(); // Get Wifi Signal strength now, because the WiFi will be turned off to save power!
     Serial.println("WiFi connected at: " + WiFi.localIP().toString());
   }
-  else 
+  else
   {
     wifi_signal = 0;
     Serial.println("WiFi connection *** FAILED ***");
@@ -165,7 +165,7 @@ void DrawBattery(int x, int y, uint8_t percentage)
 {
   drawRect(x + 55, y - 15 , 40, 15, Black);
   fillRect(x + 95, y - 9, 4, 6, Black);
-  if (percentage > 0) 
+  if (percentage > 0)
     fillRect(x + 57, y - 13, 36 * percentage / 100.0, 11, Black);
 }
 
@@ -175,14 +175,14 @@ void DrawTileHigrow(int x, int y, int width, int height, const uint8_t *image_da
   drawRect(x + 1, y + 1, width - 2, height - 2, Black);
 
     // this assumes images are 100x100px size. make sure images are cropped to 100x100 before converting
-  int image_x = int((width - TILE_IMG_WIDTH)/2) + x; 
+  int image_x = int((width - TILE_IMG_WIDTH)/2) + x;
   int image_y = int((height - TILE_IMG_HEIGHT)/2) + y;
   drawImage(image_x, image_y, TILE_IMG_WIDTH, TILE_IMG_HEIGHT, image_data);
 
   int label_txt_cursor_x = int(width / 2) + x;
   int label_txt_cursor_y = y + 21;
   drawString(label_txt_cursor_x, label_txt_cursor_y, label, CENTER);
-  
+
   if (batt != "-1")
   {
     int state_txt_cursor_x = width / 2 + x - 1;
@@ -194,14 +194,14 @@ void DrawTileHigrow(int x, int y, int width, int height, const uint8_t *image_da
     state_txt_cursor_x = x + 5;
     state_txt_cursor_y = image_y + TILE_IMG_HEIGHT + 22;
     drawString(state_txt_cursor_x, state_txt_cursor_y, temp + "° C", LEFT);
-  
+
     state_txt_cursor_x = x + width - 105;
     DrawBattery(state_txt_cursor_x, state_txt_cursor_y, batt.toInt());
     state_txt_cursor_x = x + width - 5;
     state_txt_cursor_y -= 20;
     GFXfont lastFont = currentFont;
     setFont(OpenSans8B);
-    drawString(state_txt_cursor_x, state_txt_cursor_y, batt + "%", RIGHT);  
+    drawString(state_txt_cursor_x, state_txt_cursor_y, batt + "%", RIGHT);
     setFont(lastFont);
   }
 }
@@ -213,7 +213,7 @@ void DrawTile(int x, int y, int width, int height, const uint8_t *image_data, St
   drawRect(x + 1, y + 1, width - 2, height - 2, Black);
 
   // this assumes images are 100x100px size. make sure images are cropped to 100x100 before converting
-  int image_x = int((width - TILE_IMG_WIDTH)/2) + x; 
+  int image_x = int((width - TILE_IMG_WIDTH)/2) + x;
   int image_y = int((height - TILE_IMG_HEIGHT)/2) + y;
   drawImage(image_x, image_y, TILE_IMG_WIDTH, TILE_IMG_HEIGHT, image_data);
 
@@ -256,8 +256,8 @@ void DrawSensorTile(int x, int y, int width, int height, const uint8_t* image_da
   drawRect(x+1, y+1, width-2, height-2, Black);
 
   // this assumes images are 128x128px size. make sure images are cropped to 128x128 before converting
-  int image_x = int((width - SENSOR_TILE_IMG_WIDTH)/2) + x; 
-  int image_y = y + 10;  
+  int image_x = int((width - SENSOR_TILE_IMG_WIDTH)/2) + x;
+  int image_y = y + 10;
   drawImage(image_x, image_y, SENSOR_TILE_IMG_WIDTH, SENSOR_TILE_IMG_HEIGHT, image_data);
 
   int txt_cursor_x = int(width/2) + x;
@@ -267,53 +267,53 @@ void DrawSensorTile(int x, int y, int width, int height, const uint8_t* image_da
 
 void DrawTile(int x, int y, int state, int type, String name, String value)
 {
-    int tile_width = TILE_WIDTH - TILE_GAP; 
+    int tile_width = TILE_WIDTH - TILE_GAP;
     int tile_height = TILE_HEIGHT - TILE_GAP;
 
     String state_txt = "OFF";
-    if (state == entity_state::ON) state_txt = "ON"; 
-    else if (state == entity_state::UNAVAILABLE) state_txt = "UNAVAILABLE"; 
+    if (state == entity_state::ON) state_txt = "ON";
+    else if (state == entity_state::UNAVAILABLE) state_txt = "UNAVAILABLE";
     switch (type)
     {
       case entity_type::SWITCH:
-        if (state == entity_state::ON) DrawTile(x,y,tile_width,tile_height,switchon_data, name, state_txt); 
-        else if (state == entity_state::OFF) DrawTile(x,y,tile_width,tile_height,switchoff_data, name, state_txt); 
-        else DrawTile(x,y,tile_width,tile_height,warning_data, name, "SWITCH"); 
+        if (state == entity_state::ON) DrawTile(x,y,tile_width,tile_height,switchon_data, name, state_txt);
+        else if (state == entity_state::OFF) DrawTile(x,y,tile_width,tile_height,switchoff_data, name, state_txt);
+        else DrawTile(x,y,tile_width,tile_height,warning_data, name, "SWITCH");
         break;
       case entity_type::LIGHT:
         if (state == entity_state::ON)  DrawTile(x,y,tile_width,tile_height,lightbulbon_data,name, state_txt);
         else if (state == entity_state::OFF)  DrawTile(x,y,tile_width,tile_height,lightbulboff_data,name, state_txt);
-        else DrawTile(x,y,tile_width,tile_height,warning_data, name, "LIGHT"); 
+        else DrawTile(x,y,tile_width,tile_height,warning_data, name, "LIGHT");
         break;
       case entity_type::FAN:
         if (state == entity_state::ON)  DrawTile(x,y,tile_width,tile_height,fanon_data,name, state_txt);
         else if (state == entity_state::OFF)  DrawTile(x,y,tile_width,tile_height,fanoff_data,name, state_txt);
-        else DrawTile(x,y,tile_width,tile_height,warning_data, name, "FAN"); 
+        else DrawTile(x,y,tile_width,tile_height,warning_data, name, "FAN");
         break;
     case entity_type::EXFAN:
         if (state == entity_state::ON)  DrawTile(x,y,tile_width,tile_height,exhaustfanon_data,name, state_txt);
         else if (state == entity_state::OFF)  DrawTile(x,y,tile_width,tile_height,exhaustfanoff_data,name, state_txt);
-        else DrawTile(x,y,tile_width,tile_height,warning_data, name, "EXHAUST FAN"); 
+        else DrawTile(x,y,tile_width,tile_height,warning_data, name, "EXHAUST FAN");
         break;
       case entity_type::AIRPURIFIER:
         if (state == entity_state::ON)  DrawTile(x,y,tile_width,tile_height,airpurifieron_data,name, state_txt);
         else if (state == entity_state::OFF)  DrawTile(x,y,tile_width,tile_height,airpurifieroff_data,name, state_txt);
-        else DrawTile(x,y,tile_width,tile_height,warning_data, name, "AIR PURIFIER"); 
+        else DrawTile(x,y,tile_width,tile_height,warning_data, name, "AIR PURIFIER");
         break;
       case entity_type::WATERHEATER:
         if (state == entity_state::ON)  DrawTile(x,y,tile_width,tile_height,waterheateron_data,name, state_txt);
         else if (state == entity_state::OFF)  DrawTile(x,y,tile_width,tile_height,waterheateroff_data,name, state_txt);
-        else DrawTile(x,y,tile_width,tile_height,warning_data, name, "WATER HEATER"); 
+        else DrawTile(x,y,tile_width,tile_height,warning_data, name, "WATER HEATER");
         break;
       case entity_type::PLUG:
         if (state == entity_state::ON)  DrawTile(x,y,tile_width,tile_height,plugon_data,name, state_txt);
         else if (state == entity_state::OFF)  DrawTile(x,y,tile_width,tile_height,plugoff_data,name, state_txt);
-        else DrawTile(x,y,tile_width,tile_height,warning_data, name, "PLUG"); 
+        else DrawTile(x,y,tile_width,tile_height,warning_data, name, "PLUG");
         break;
       case entity_type::AIRCONDITIONER:
         if (state == entity_state::ON)  DrawTile(x,y,tile_width,tile_height,airconditioneron_data,name, state_txt);
         else if (state == entity_state::OFF)  DrawTile(x,y,tile_width,tile_height,airconditioneroff_data,name, state_txt);
-        else DrawTile(x,y,tile_width,tile_height,warning_data, name, "AIR CONDITIONER"); 
+        else DrawTile(x,y,tile_width,tile_height,warning_data, name, "AIR CONDITIONER");
         break;
       case entity_type::PLANT:
         if (value.toInt() >= WATERING_SOIL_LIMIT) DrawTile(x, y, tile_width, tile_height, plantwateringok_data, name, value + "%");
@@ -327,7 +327,7 @@ void DrawTile(int x, int y, int state, int type, String name, String value)
 
 void DrawTileHigrow(int x, int y, int state, int type, String name, String soil, String temp, String batt)
 {
-    int tile_width = TILE_WIDTH - TILE_GAP; 
+    int tile_width = TILE_WIDTH - TILE_GAP;
     int tile_height = TILE_HEIGHT - TILE_GAP;
 
     if (batt.toInt() == -1) DrawTileHigrow(x, y, tile_width, tile_height, batteryempty_data, name, soil, temp, batt);
@@ -338,24 +338,24 @@ void DrawTileHigrow(int x, int y, int state, int type, String name, String soil,
 
 void DrawSensorTile(int x, int y, int state, int type, String name)
 {
-    int tile_width = SENSOR_TILE_WIDTH - TILE_GAP; 
+    int tile_width = SENSOR_TILE_WIDTH - TILE_GAP;
     int tile_height = SENSOR_TILE_HEIGHT - TILE_GAP;
     switch (type)
     {
       case sensor_type::DOOR:
-        if (state == entity_state::ON) DrawSensorTile(x,y,tile_width,tile_height,dooropen_data, name); 
-        else if (state == entity_state::OFF) DrawSensorTile(x,y,tile_width,tile_height,doorclosed_data, name); 
-        else DrawSensorTile(x,y,tile_width,tile_height,sensorerror_data, name); 
+        if (state == entity_state::ON) DrawSensorTile(x,y,tile_width,tile_height,dooropen_data, name);
+        else if (state == entity_state::OFF) DrawSensorTile(x,y,tile_width,tile_height,doorclosed_data, name);
+        else DrawSensorTile(x,y,tile_width,tile_height,sensorerror_data, name);
         break;
       case sensor_type::WINDOW:
-        if (state == entity_state::ON) DrawSensorTile(x,y,tile_width,tile_height,windowopen_data, name); 
-        else if (state == entity_state::OFF) DrawSensorTile(x,y,tile_width,tile_height,windowclosed_data, name); 
-        else DrawSensorTile(x,y,tile_width,tile_height,sensorerror_data, name); 
+        if (state == entity_state::ON) DrawSensorTile(x,y,tile_width,tile_height,windowopen_data, name);
+        else if (state == entity_state::OFF) DrawSensorTile(x,y,tile_width,tile_height,windowclosed_data, name);
+        else DrawSensorTile(x,y,tile_width,tile_height,sensorerror_data, name);
         break;
       case sensor_type::MOTION:
-        if (state == entity_state::ON) DrawSensorTile(x,y,tile_width,tile_height,motionsensoron_data, name); 
-        else if (state == entity_state::OFF) DrawSensorTile(x,y,tile_width,tile_height,motionsensoroff_data, name); 
-        else DrawSensorTile(x,y,tile_width,tile_height,sensorerror_data, name); 
+        if (state == entity_state::ON) DrawSensorTile(x,y,tile_width,tile_height,motionsensoron_data, name);
+        else if (state == entity_state::OFF) DrawSensorTile(x,y,tile_width,tile_height,motionsensoroff_data, name);
+        else DrawSensorTile(x,y,tile_width,tile_height,sensorerror_data, name);
         break;
       default:
         break;
@@ -364,7 +364,7 @@ void DrawSensorTile(int x, int y, int state, int type, String name)
 
 void DrawBottomTile(int x, int y, String value, String name)
 {
-    int tile_width = BOTTOM_TILE_WIDTH - TILE_GAP; 
+    int tile_width = BOTTOM_TILE_WIDTH - TILE_GAP;
     int tile_height = BOTTOM_TILE_HEIGHT - TILE_GAP;
     drawRect(x, y, tile_width, tile_height, Black);
     drawRect(x+1, y+1, tile_width-2, tile_height-2, Black);
@@ -395,7 +395,7 @@ void DrawBottomBar()
     }
     int x = 3;
     int y = 456;
-    // first one 
+    // first one
     if (totalEnergy != 0)
     {
         DrawBottomTile(x, y, String(totalEnergy) + " kWh", totalEnergyName);
@@ -408,7 +408,7 @@ void DrawBottomBar()
         x = x + BOTTOM_TILE_WIDTH;
         tiles--;
     }
-    
+
     for (int i = 0; i < (sizeof(haFloatSensors) / sizeof(haFloatSensors[0])); i++){
         if (haFloatSensors[i].entityType == sensor_type::TEMP && tiles >= 1)
         {
@@ -440,7 +440,7 @@ void DrawSwitchBar()
               haEntities[i].entityType == entity_type::AIRPURIFIER ||
               haEntities[i].entityType == entity_type::WATERHEATER ||
               haEntities[i].entityType == entity_type::AIRCONDITIONER)
-          {            
+          {
               DrawTile(x, y, checkOnOffState(haEntities[i].entityID), haEntities[i].entityType, haEntities[i].entityName, "");
           }
           else if (haEntities[i].entityType == entity_type::HIGROW)
@@ -464,13 +464,13 @@ void DrawSwitchBar()
                 DrawTileHigrow(x, y, 0, haEntities[i].entityType, haEntities[i].entityName, soilVal, tempVal, battVal);
               }
           }
-          else 
+          else
           {
               String val = getSensorValue(haEntities[i].entityID);
               DrawTile(x, y, 0, haEntities[i].entityType, haEntities[i].entityName, val);
           }
         }
-      
+
         x = x + TILE_WIDTH; // move column right
         if (i == 5) { // move row down
             x = 3;
@@ -485,7 +485,7 @@ void DrawSensorBar()
     int x = 3;
     int y = 345;
     for (int i = 0; i < sizeof(haSensors) / sizeof(haSensors[0]); i++){
-        if ((haSensors[i].entityType == sensor_type::DOOR || 
+        if ((haSensors[i].entityType == sensor_type::DOOR ||
             haSensors[i].entityType == sensor_type::WINDOW ||
             haSensors[i].entityType == sensor_type::MOTION ) && haSensors[i].entityName != "")
         {
@@ -511,14 +511,14 @@ void DrawRSSI(int x, int y, int rssi) {
     if (_rssi <= -60)  WIFIsignal = 12; //  -60dbm to  -41dbm displays 3-bars
     if (_rssi <= -80)  WIFIsignal = 8; //  -80dbm to  -61dbm displays 2-bars
     if (_rssi <= -100) WIFIsignal = 4;  // -100dbm to  -81dbm displays 1-bar
-    
-    if (rssi != 0) 
+
+    if (rssi != 0)
       fillRect(x + xpos * 8, y - WIFIsignal, 6, WIFIsignal, Black);
     else // draw empty bars
       drawRect(x + xpos * 8, y - WIFIsignal, 6, WIFIsignal, Black);
     xpos++;
   }
-  if (rssi == 0) 
+  if (rssi == 0)
     drawString(x , y, "x", LEFT);
 }
 
@@ -567,7 +567,7 @@ void DisplayGeneralInfoSection()
     setFont(OpenSans8B);
     Serial.println("Getting haStatus...");
     HAConfigurations haConfigs = getHaStatus();
-    Serial.println("drawing status line...");    
+    Serial.println("drawing status line...");
     drawString(EPD_WIDTH/2, 18, dateStamp + " - " +  timeStamp + " (HA Ver:" + haConfigs.version + "/" + haConfigs.haStatus + ", TZ:" + haConfigs.timeZone + ")", CENTER);
 }
 
@@ -587,7 +587,7 @@ void DrawWifiErrorScreen()
 void DrawHAScreen()
 {
     epd_clear();
-    
+
     DisplayStatusSection();
     DisplayGeneralInfoSection();
     Serial.println("Drawing (large icon) switchBar...");
@@ -615,7 +615,8 @@ void InitialiseSystem() {
 
 void BeginSleep() {
   epd_poweroff_all();
-  SleepTimer = (SleepDuration * 60 - ((CurrentMin % SleepDuration) * 60 + CurrentSec));
+  // SleepTimer = (SleepDuration * 60 - ((CurrentMin % SleepDuration) * 60 + CurrentSec));
+  SleepTimer = 30;
   esp_sleep_enable_timer_wakeup(SleepTimer * 1000000LL); // in Secs, 1000000LL converts to Secs as unit = 1uSec
   Serial.println("Awake for : " + String((millis() - StartTime) / 1000.0, 3) + "-secs");
   Serial.println("Entering " + String(SleepTimer) + " (secs) of sleep time");
@@ -634,6 +635,8 @@ void setup() {
         WakeUp = (CurrentHour >= WakeupHour || CurrentHour <= SleepHour);
       else
         WakeUp = (CurrentHour >= WakeupHour && CurrentHour <= SleepHour);
+      // Just fuckin' wake up ffs.
+      WakeUp = true;
       if (WakeUp) {
           DrawHAScreen();
       }
@@ -644,7 +647,7 @@ void setup() {
   BeginSleep();
 }
 
-void loop() {    
+void loop() {
   // nothing to do here
 }
 
